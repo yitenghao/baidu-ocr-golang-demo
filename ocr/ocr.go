@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"storeapp_go/utils"
 	"strings"
 	"time"
 )
@@ -140,7 +139,7 @@ func authtoken() (error, ResponseData) {
 	// fmt.Println(respmsg.Request.Form, respmsg.Request.Method, respmsg.Request.URL)
 	response := ResponseData{}
 	if msgerr != nil {
-		response.Code = utils.FailedCode
+		response.Code = "400"
 		response.Msg = "token请求失败"
 		response.Token = ""
 		return msgerr, response
@@ -149,7 +148,7 @@ func authtoken() (error, ResponseData) {
 	resbody, reserr := ioutil.ReadAll(respmsg.Body)
 	if reserr != nil {
 		// handle error
-		response.Code = utils.FailedCode
+		response.Code = "400"
 		response.Msg = "token读取失败"
 		response.Token = ""
 		return reserr, response
@@ -161,7 +160,7 @@ func authtoken() (error, ResponseData) {
 	err := json.Unmarshal(resbody, &rtdata)
 	if err != nil {
 		fmt.Println(err)
-		response.Code = utils.FailedCode
+		response.Code = "400"
 		response.Msg = "token解析失败"
 		response.Token = ""
 		return err, response
