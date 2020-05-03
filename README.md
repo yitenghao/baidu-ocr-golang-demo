@@ -1,5 +1,5 @@
 # baidu-ocr-golang-demo
-go语言调百度ocr api
+go语言调百度ocr api实现文字识别
 ## Config
 在ocr.go文件里面配置百度智能云( https://login.bce.baidu.com/ )里面获得的clientid和clientsecret
 ## Run
