@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>recorded</title>
+</head>
+<body>
+
+    <video id="gum" autoplay muted></video>
+    <video id="recorded" autoplay loop></video>
+    <canvas id="canvas" width="500px" height="500px"></canvas>
+    <div>
+      <button id="opencamera">打开前摄像头</button>
+      <button id="changecamera" >打开后摄像头</button>
+      <button id="record" disabled>开始录制</button>
+      <button id="play" disabled>播放</button>
+      <button id="download" disabled>下载</button>
+      <button id="snap" onclick="takePhoto()">拍照</button>
+      <button id="ocr" onclick="toocr()">识别</button>
+    </div>
+    <div id="content">
+        
+    </div>
+</body>
+<script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+<script>
+var mediaRecorder;
+var recordedBlobs;
+var imgdata;
+
+var gumVideo = document.querySelector('video#gum');
+var recordedVideo = document.querySelector('video#recorded');
+
+var openButton = document.querySelector('button#opencamera');
+var changeButton = document.querySelector('button#changecamera');
+var recordButton = document.querySelector('button#record');
+var playButton = document.querySelector('button#play');
+var downloadButton = document.querySelector('button#download');
+recordButton.onclick = toggleRecording;
+playButton.onclick = play;
+downloadButton.onclick = download;
+
+var isSecureOrigin = location.protocol === 'https:' ||location.hostname === 'localhost';
+if (!isSecureOrigin) {
+  alert('getUserMedia() must be run from a secure origin: HTTPS or localhost.' +
+    '\n\nChanging protocol to HTTPS');
+  location.protocol = 'HTTPS';
+}
+var constraints1 = {  //后置摄像头
+  audio: true,
+  video: { facingMode: { exact: "environment" } }
+};
+var constraints2 = {  //前置摄像头
+  audio: true,
+  video: { facingMode: "user" }
+};
+
+function handleSuccess(stream) {
+  recordButton.disabled = false;
+  console.log('getUserMedia() got stream: ', stream);
+  window.stream = stream;
+  if (window.URL) {
+    gumVideo.src = window.URL.createObjectURL(stream);
+  } else {
+    gumVideo.src = stream;
+  }
+}
+
+function handleError(error) {
+  console.log('navigator.getUserMedia error: ', error);
+}
+
+document.querySelector('#opencamera').onclick = function(){
+  this.disabled = true;
+  changeButton.disabled=true
+  navigator.mediaDevices.getUserMedia(constraints2).then(handleSuccess).catch(handleError);
+};
+document.querySelector('#changecamera').onclick = function(){
+    // window.stream.onended()
+    openButton.disabled=true
+    navigator.mediaDevices.getUserMedia(constraints1).then(handleSuccess).catch(handleError);
+};
+//必须在localhost或https下前端才能获取到摄像头权限
+
+recordedVideo.addEventListener('error', function(ev) {
+  console.error('MediaRecording.recordedMedia.error()');
+  alert('Your browser can not play\n\n' + recordedVideo.src
+    + '\n\n media clip. event: ' + JSON.stringify(ev));
+}, true);
+
+function handleDataAvailable(event) {
+  if (event.data && event.data.size > 0) {
+    recordedBlobs.push(event.data);
+  }
+}
+
+function handleStop(event) {
+  console.log('Recorder stopped: ', event);
+}
+
+function toggleRecording() {
+  if (recordButton.textContent === '开始录制') {
+    startRecording();
+  } else {
+    stopRecording();
+    recordButton.textContent = '开始录制';
+    playButton.disabled = false;
+    downloadButton.disabled = false;
+  }
+}
+
+function startRecording() {   //录像
+  recordedBlobs = [];
+  var options = {mimeType: 'video/webm;codecs=vp9'};
+  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    console.log(options.mimeType + ' is not Supported');
+    options = {mimeType: 'video/webm;codecs=vp8'};
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      console.log(options.mimeType + ' is not Supported');
+      options = {mimeType: 'video/webm'};
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        console.log(options.mimeType + ' is not Supported');
+        options = {mimeType: ''};
+      }
+    }
+  }
+  try {
+    mediaRecorder = new MediaRecorder(window.stream, options);
+  } catch (e) {
+    console.error('Exception while creating MediaRecorder: ' + e);
+    alert('Exception while creating MediaRecorder: '
+      + e + '. mimeType: ' + options.mimeType);
+    return;
+  }
+  console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
+  recordButton.textContent = '关闭录制';
+  playButton.disabled = true;
+  downloadButton.disabled = true;
+  mediaRecorder.onstop = handleStop;
+  mediaRecorder.ondataavailable = handleDataAvailable;
+  mediaRecorder.start(10); // collect 10ms of data
+  console.log('MediaRecorder started', mediaRecorder);
+}
+
+function stopRecording() {
+  mediaRecorder.stop();
+  console.log('Recorded Blobs: ', recordedBlobs);
+  recordedVideo.controls = true;
+}
+
+function play() {
+  var superBuffer = new Blob(recordedBlobs, {type: 'video/webm'});
+  recordedVideo.src = window.URL.createObjectURL(superBuffer);
+}
+
+function download() {
+  var blob = new Blob(recordedBlobs, {type: 'video/webm'});
+  var url = window.URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = 'test.webm';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 100);
+}
+function takePhoto() {
+    //获得Canvas对象
+    let video = document.getElementById("gum");
+    let canvas = document.getElementById("canvas");
+    let ctx = canvas.getContext('2d');
+    //绘图
+    console.log(video.style.width,video.style.height)
+    ctx.drawImage(video, 0, 0, 400, 300);
+    console.log(canvas.toDataURL("image/png"));  //base64
+    imgdata=canvas.toDataURL("image/png");
+}
+function toocr(){
+    htmlobj=$.ajax({
+        type:"POST",
+        url:"/ocr",
+        async:false,
+        contentType:"json",
+        data:JSON.stringify({
+            base:imgdata
+        }),
+        success:function(data){
+            console.log(data)
+            var worlds=JSON.parse(data)
+            if(worlds.Code=="200"){
+              var content= document.getElementById("content")
+              var length=content.childNodes.length
+              //清空
+              for(var i=length-1;i>=0;i--){
+                  content.removeChild(content.childNodes[i])
+              }
+              //重写
+              worlds.Data.forEach(item => {
+                  var p= document.createElement("p")
+                  p.innerHTML=item
+                  content.appendChild(p)
+              });
+            }else{
+              alert(worlds.Msg)
+            }
+        },
+        error:function(data){
+          alert("请求失败")
+        }
+    });
+}
+</script>
+</html>
